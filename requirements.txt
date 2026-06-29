@@ -1,0 +1,17 @@
+# GPU & CUDA Inference Optimization — dependencies
+#
+# On paid Google Colab, torch / numpy / matplotlib are preinstalled with a
+# CUDA build that matches the runtime — do NOT pip-install torch there (it can
+# replace the GPU build with a CPU one). You typically only need transformers:
+#     pip install -q "transformers>=4.42,<5"
+#
+# For a local/self-managed environment, the floors below are what the notebooks
+# rely on (torch.compile, mode="reduce-overhead", CUDAGraph, stable KV cache).
+
+torch>=2.4          # CUDA events, torch.compile, CUDAGraph, BF16 tensor cores
+transformers>=4.42,<5   # toy LlamaForCausalLM + stable KV-cache (Cache) API
+matplotlib>=3.7     # roofline + latency plots
+numpy>=1.24         # roofline grid math
+
+# Run the notebooks:
+jupyterlab>=4.0

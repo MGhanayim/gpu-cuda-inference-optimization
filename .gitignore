@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Generated artifacts (reproducible — re-create with a GPU run)
+results/**
+# ...but keep the lightweight demo plots so the README renders on GitHub
+!results/
+!results/hw1/
+!results/hw1/roofline.png
+!results/hw1/roofline_data.json
+!results/hw3/
+!results/hw3/launch_overhead.png
+!results/hw3/decode_step_latency.png
+# heavy Chrome traces stay ignored (multi-MB)
+results/**/trace_*.json
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
