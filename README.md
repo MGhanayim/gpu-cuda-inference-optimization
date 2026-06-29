@@ -52,11 +52,11 @@ jupyter lab
 
 ## Notebooks
 
-| Notebook | Topic | You build |
-|----------|-------|-----------|
-| [`hw1_roofline.ipynb`](hw1_roofline.ipynb) | Roofline & arithmetic intensity | CUDA-event timer, roofline metrics, memory-/compute-bound workloads |
-| [`hw2_decode_optimization.ipynb`](hw2_decode_optimization.ipynb) | Profile & optimize a decode loop | profiler wrapper, KV-cache greedy decode, timed bf16 run |
-| [`hw3_compile_cuda_graphs.ipynb`](hw3_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph |
+| Notebook | Topic | You build | Run |
+|----------|-------|-----------|-----|
+| [`hw1_roofline.ipynb`](hw1_roofline.ipynb) | Roofline & arithmetic intensity | CUDA-event timer, roofline metrics, memory-/compute-bound workloads | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw1_roofline.ipynb) |
+| [`hw2_decode_optimization.ipynb`](hw2_decode_optimization.ipynb) | Profile & optimize a decode loop | profiler wrapper, KV-cache greedy decode, timed bf16 run | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw2_decode_optimization.ipynb) |
+| [`hw3_compile_cuda_graphs.ipynb`](hw3_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw3_compile_cuda_graphs.ipynb) |
 
 Each notebook: a fixed harness, functions you implement, self-checks that must
 pass, and a short writeup. They build on each other — do them in order.
