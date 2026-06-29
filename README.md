@@ -96,6 +96,39 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 └── requirements.txt
 ```
 
+## Key Concepts
+
+- **Arithmetic intensity (AI):** FLOPs performed per byte moved to and from HBM
+  (unit: FLOP/byte). It is the x-axis of the roofline and a property of the
+  *workload*, not the hardware. Low AI (few ops per byte loaded) means
+  memory-bound; high AI means compute-bound. An elementwise op is about
+  0.25 FLOP/byte; an N×N×N matmul is about (2/3)·N/dbytes, which grows with N.
+- **Roofline:** a log-log plot of achieved performance (TFLOP/s) against
+  arithmetic intensity. Two ceilings bound it: a sloped bandwidth limit
+  (peak_BW × AI) on the left and a flat compute limit (peak FLOP/s) on the right.
+  The ridge point where they meet (peak FLOP/s ÷ peak BW) separates memory-bound
+  from compute-bound.
+- **Memory-bound vs compute-bound:** memory-bound work is limited by how fast
+  bytes move to and from HBM (it sits under the sloped ceiling, left of the
+  ridge); compute-bound work is limited by how fast the cores do math (under the
+  flat ceiling, right of the ridge).
+- **Kernel:** a single function that runs on the GPU, executed in parallel by
+  many threads. Each PyTorch op (`sin`, `add`, `matmul`) launches one or more
+  kernels, and every launch costs the CPU a fixed few microseconds regardless of
+  the work (the launch overhead measured in HW3).
+- **HBM (High Bandwidth Memory):** the GPU's main memory (its VRAM, for example
+  40 GB on an A100-40GB) with very high bandwidth (about 1.5 TB/s). Reading
+  inputs from HBM and writing results back (an "HBM round-trip") is what limits
+  memory-bound ops; the roofline's sloped ceiling *is* the HBM bandwidth.
+- **Eager:** PyTorch's default execution mode. Each op runs immediately as its
+  own kernel launch with its own HBM round-trip. Simple and easy to debug, but a
+  chain of K ops pays K launches and K round-trips.
+- **Compiled (`torch.compile`):** traces the function into a graph and generates
+  *fused* kernels. For an op chain it fuses many ops into one kernel (read from
+  HBM once, compute in registers, write once), cutting launches and HBM
+  round-trips. It costs a one-time compile (so timing needs warmup) and can
+  "graph break" on some Python constructs (the subject of HW3).
+
 ## Docs
 
 - **[SPEC.md](SPEC.md)**: requirements as acceptance criteria + verification checklist.
