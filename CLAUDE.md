@@ -3,7 +3,7 @@
 ## Project
 
 Three Jupyter notebooks that teach **GPU inference optimization** by
-measurement — roofline analysis, profiling/optimizing an autoregressive decode
+measurement: roofline analysis, profiling/optimizing an autoregressive decode
 loop, and removing kernel-launch overhead with `torch.compile` and CUDA graphs.
 Code is written **in-notebook**; the deliverable is each notebook executed on a
 GPU plus the artifacts under `results/`.
@@ -13,9 +13,9 @@ GPU plus the artifacts under `results/`.
 - Effort + knowledge per block → [BREAKDOWN.md](BREAKDOWN.md)
 
 ### Tech Stack
-- **PyTorch ≥ 2.4** — CUDA-event timing, `torch.compile`, `CUDAGraph`, BF16.
-- **transformers ≥ 4.42** — toy `LlamaForCausalLM` + KV-cache API (HW2).
-- **matplotlib / numpy** — roofline and latency plots.
+- **PyTorch ≥ 2.4**: CUDA-event timing, `torch.compile`, `CUDAGraph`, BF16.
+- **transformers ≥ 4.42**: toy `LlamaForCausalLM` + KV-cache API (HW2).
+- **matplotlib / numpy**: roofline and latency plots.
 - **Runtime:** paid Google Colab GPU. Local macOS = CPU smoke tests only.
 - **Banned:** vLLM / TensorRT-LLM / SGLang (PyTorch + `requirements.txt` only).
 
@@ -23,19 +23,19 @@ GPU plus the artifacts under `results/`.
 
 - Reason about a kernel as **memory-bound vs compute-bound** and place it on a
   roofline from real measurements.
-- Time GPU code **correctly** (async execution, CUDA events, warmup) — and know
+- Time GPU code **correctly** (async execution, CUDA events, warmup): and know
   why `time.time()` lies.
 - Understand the **KV cache** and why a naive decode loop is O(n²), and remove
   host syncs from a hot loop.
 - Read a **profiler trace** (Perfetto) and name the bottleneck.
-- Understand **graph breaks**, `torch.compile`, and **CUDA graphs** — and when
+- Understand **graph breaks**, `torch.compile`, and **CUDA graphs**: and when
   compilation does *not* help.
 
 ## How to Work With Me
 
 ### Teaching Mode (default)
 - **Do NOT write full implementations.** Guide me step by step.
-- **Explain the concept BEFORE any code** — the GPU mechanism behind the task.
+- **Explain the concept BEFORE any code**: the GPU mechanism behind the task.
 - **Show small snippets (≤20 lines)**, then let me write/extend the function.
 - **Hints before answers** when I'm stuck. Escalate gradually.
 - **Ask leading questions** to check understanding ("what does `.item()` force
@@ -43,11 +43,11 @@ GPU plus the artifacts under `results/`.
 - **After each step, explain WHY** and connect it to the diagram in
   [PLAN.md](PLAN.md) and the concept stack (§2b).
 - **Reference [SPEC.md](SPEC.md)** acceptance criteria so we know a step is done.
-- **Tie back to earlier notebooks** — HW2's timer is HW1's idea; HW3 detects with
+- **Tie back to earlier notebooks**: HW2's timer is HW1's idea; HW3 detects with
   HW1/HW2 tools.
 
 ### When I say "just do it" / "implement this"
-- Switch to implementation mode — write the full function.
+- Switch to implementation mode: write the full function.
 - Still explain non-obvious design decisions (why bf16 only for the timed run;
   why `clone()` the graph output).
 - Mark the relevant [SPEC.md](SPEC.md) acceptance criteria as met.
@@ -55,7 +55,7 @@ GPU plus the artifacts under `results/`.
 ### Code Standards
 - **Never edit a `DO NOT EDIT` cell.** (Editing the HW2 harness invalidates the
   speedup numbers.) Work only in `YOUR IMPLEMENTATION` cells.
-- Keep the stubs' **type hints and docstrings** — extend, don't strip.
+- Keep the stubs' **type hints and docstrings**: extend, don't strip.
 - Match the contract exactly: return types, dict keys, tensor shapes, "no mutate".
 - Meaningful names; no leftover `print` on a hot path (HW3) or debug cruft.
 - Run the **self-check on CPU first** (free) before paying for a GPU run.
@@ -63,13 +63,13 @@ GPU plus the artifacts under `results/`.
 
 ## Implementation Steps
 
-Work the blocks **in order** — they follow the concept stack in PLAN.md §2b.
+Work the blocks **in order**: they follow the concept stack in PLAN.md §2b.
 Each block is one concept and ships one capability you can self-check before
 moving on. Block ids are `<notebook><letter>`.
 
 ---
 
-### BLOCK 1A — Async timing with CUDA events (Layer 1) · `hw1_roofline.ipynb`
+### BLOCK 1A: Async timing with CUDA events (Layer 1) · `hw1_roofline.ipynb`
 **Concept:** GPU launches are asynchronous; `time.time()` measures Python queuing,
 not GPU work. CUDA events + `synchronize()` give real device time; warmup hides
 one-time costs (cuBLAS autotune, `torch.compile`).
@@ -84,7 +84,7 @@ one-time costs (cuBLAS autotune, `torch.compile`).
 
 ---
 
-### BLOCK 1B — Roofline coordinates (Layer 1) · `hw1_roofline.ipynb`
+### BLOCK 1B: Roofline coordinates (Layer 1) · `hw1_roofline.ipynb`
 **Concept:** Arithmetic intensity = FLOP/byte. Achieved compute (TFLOP/s) and
 bandwidth (GB/s) come from the same measurement; the ridge point separates
 memory- from compute-bound.
@@ -98,7 +98,7 @@ self-check `compute_metrics PASS`.
 
 ---
 
-### BLOCK 1C — Workloads on the roofline (Layer 2) · `hw1_roofline.ipynb`
+### BLOCK 1C: Workloads on the roofline (Layer 2) · `hw1_roofline.ipynb`
 **Concept:** A memory-bound op (1 read, 1 write, ~1 FLOP) sits far left; chaining
 `k` ops raises *ideal* AI but eager keeps it low (a kernel + HBM round-trip per
 step) until `torch.compile` fuses the chain. Real data dependencies prevent
@@ -108,22 +108,22 @@ constant-folding.
 
 - [x] **1C.1** `lowest_ai_fn`: return a no-arg fn doing one cheap elementwise pass.
 - [x] **1C.2** `make_compute_fn`: chain `k` ops through `x`; **don't mutate** `x`; ensure `k` changes the result.
-- [ ] **1C.3** Run the sweep on GPU; confirm eager vs compiled separation and matmul climb.
+- [x] **1C.3** Run the sweep on GPU; confirm eager vs compiled separation and matmul climb.
 - **Learn:** memory- vs compute-bound ops; kernel fusion via `torch.compile`; why eager AI stays low.
 
 ---
 
-### BLOCK 1D — HW1 writeup (Layer 3) · `hw1_roofline.ipynb`
+### BLOCK 1D: HW1 writeup (Layer 3) · `hw1_roofline.ipynb`
 **Concept:** Read the roofline you produced.
 **Outcome:** Q1 + Q2 answered.
 
-- [ ] **1D.1** Q1: which points are memory- vs compute-bound, from the plot alone.
-- [ ] **1D.2** Q2: why AI rises with `N` for `N×N×N` matmul (`~2N³` FLOPs, `~3N²·dbytes` bytes → `AI ∝ N`).
+- [x] **1D.1** Q1: which points are memory- vs compute-bound, from the plot alone.
+- [x] **1D.2** Q2: why AI rises with `N` for `N×N×N` matmul (`~2N³` FLOPs, `~3N²·dbytes` bytes → `AI ∝ N`).
 - **Learn:** interpreting slope vs flat regions; matmul scaling.
 
 ---
 
-### BLOCK 2A — Profiling a decode loop (Layer 2) · `hw2_decode_optimization.ipynb`
+### BLOCK 2A: Profiling a decode loop (Layer 2) · `hw2_decode_optimization.ipynb`
 **Concept:** `torch.profiler` records CPU+CUDA ops; the self-CUDA-time table and a
 Chrome trace (Perfetto) reveal launch gaps, tiny-kernel runs, and host syncs.
 **Outcome:** `profile` writes a non-empty trace; self-check `profile() writes a Chrome trace PASS`.
@@ -135,7 +135,7 @@ Chrome trace (Perfetto) reveal launch gaps, tiny-kernel runs, and host syncs.
 
 ---
 
-### BLOCK 2B — Fast, correct greedy decode (Layer 2) · `hw2_decode_optimization.ipynb`
+### BLOCK 2B: Fast, correct greedy decode (Layer 2) · `hw2_decode_optimization.ipynb`
 **Concept:** The baseline recomputes the whole sequence every step (no KV cache,
 O(n²)) and forces a host sync (`.item()`) each step. A KV cache makes each step
 process one token; greedy decoding is deterministic so tokens must match exactly.
@@ -151,7 +151,7 @@ baseline tokens exactly; self-check `optimized_loop matches baseline PASS`.
 
 ---
 
-### BLOCK 2C — Build + time the optimized run (Layer 2) · `hw2_decode_optimization.ipynb`
+### BLOCK 2C: Build + time the optimized run (Layer 2) · `hw2_decode_optimization.ipynb`
 **Concept:** The timed path may change numerics (bf16) and add `torch.compile` /
 CUDA graphs; correctness is judged separately on the fp32 path. Warmup matters.
 **Outcome:** `generate_optimized` returns `(elapsed_seconds, token_ids)`; speedup
@@ -165,9 +165,9 @@ hits the tier (target **≥ 4×**) on GPU.
 
 ---
 
-### BLOCK 2D — HW2 writeup (Layer 3) · `hw2_decode_optimization.ipynb`
+### BLOCK 2D: HW2 writeup (Layer 3) · `hw2_decode_optimization.ipynb`
 **Concept:** Explain the trace and attribute speedups.
-**Outcome:** Q1–Q4 answered (Q2 has a per-optimization table).
+**Outcome:** Q1-Q4 answered (Q2 has a per-optimization table).
 
 - [ ] **2D.1** Q1: dominant symptom in the baseline trace (name it concretely).
 - [ ] **2D.2** Q2: per-optimization speedup measured one at a time (table).
@@ -177,7 +177,7 @@ hits the tier (target **≥ 4×**) on GPU.
 
 ---
 
-### BLOCK 3A — Cost of one kernel launch (Layer 1) · `hw3_compile_cuda_graphs.ipynb`
+### BLOCK 3A: Cost of one kernel launch (Layer 1) · `hw3_compile_cuda_graphs.ipynb`
 **Concept:** A launch costs the CPU a few µs regardless of work; for tiny tensors
 wall time is nearly pure overhead until size makes the work dominate (the knee).
 **Outcome:** sweep + `estimate_launch_overhead_us`; `results/hw3/launch_overhead.png`.
@@ -189,7 +189,7 @@ wall time is nearly pure overhead until size makes the work dominate (the knee).
 
 ---
 
-### BLOCK 3B — Eliminating graph breaks (Layer 2) · `hw3_compile_cuda_graphs.ipynb`
+### BLOCK 3B: Eliminating graph breaks (Layer 2) · `hw3_compile_cuda_graphs.ipynb`
 **Concept:** Dynamo breaks on values it needs from tensor data (`.item()`, branch
 on a tensor, `print`). Each break splits the graph and `.item()` also syncs.
 **Outcome:** `fixed_decode_step` same math, **0 graph breaks**, `fullgraph=True`.
@@ -202,9 +202,9 @@ on a tensor, `print`). Each break splits the graph and `.item()` also syncs.
 
 ---
 
-### BLOCK 3C — CUDA graphs by hand (Layer 2) · `hw3_compile_cuda_graphs.ipynb`
+### BLOCK 3C: CUDA graphs by hand (Layer 2) · `hw3_compile_cuda_graphs.ipynb`
 **Concept:** A CUDA graph records a kernel sequence once and replays it in one
-launch — what `reduce-overhead` automates. Cost: static buffers, fixed shapes, no
+launch: what `reduce-overhead` automates. Cost: static buffers, fixed shapes, no
 host sync inside.
 **Outcome:** `make_graphed_callable` matches eager + handles static buffers; final
 4-way benchmark writes `results/hw3/decode_step_latency.png`.
@@ -217,14 +217,14 @@ host sync inside.
 
 ---
 
-### BLOCK 3D — HW3 writeup (Layer 3) · `hw3_compile_cuda_graphs.ipynb`
+### BLOCK 3D: HW3 writeup (Layer 3) · `hw3_compile_cuda_graphs.ipynb`
 **Concept:** Explain the breaks, why replay helps batch-1 decode, and compile's limits.
-**Outcome:** Q1–Q3 answered.
+**Outcome:** Q1-Q3 answered.
 
 - [ ] **3D.1** Q1: why each construct breaks; what replaced it; why `.item()` is doubly bad.
 - [ ] **3D.2** Q2: why replay helps small-batch decode (tie to 3A); constraints respected.
 - [ ] **3D.3** Q3: two cases where `compile` is slower/unhelpful + how to detect with roofline/profiler.
-- **Learn:** synthesizing HW1–HW3; when not to compile.
+- **Learn:** synthesizing HW1-HW3; when not to compile.
 
 ---
 
@@ -241,7 +241,7 @@ host sync inside.
 ## Quick Commands
 
 ```bash
-# Local (macOS, CPU) — smoke test only: run self-check cells to catch contract bugs.
+# Local (macOS, CPU): smoke test only: run self-check cells to catch contract bugs.
 pip install -r requirements.txt
 jupyter lab            # or: jupyter notebook
 
@@ -254,5 +254,5 @@ jupyter lab            # or: jupyter notebook
 > **Colab runtime caveat:** HW1's `detect_hardware()` only recognizes `H100` /
 > `L40S`. On an A100/T4 it falls back to **H100 ceilings** (with a printed
 > warning), so your points sit artificially far below the roof. The spec cell is
-> DO-NOT-EDIT — note the mismatch in the HW1 writeup instead of editing it.
+> DO-NOT-EDIT: note the mismatch in the HW1 writeup instead of editing it.
 > Prefer an L40S/H100 runtime if your Colab tier offers one.

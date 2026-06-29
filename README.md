@@ -1,7 +1,7 @@
 # GPU & CUDA Inference Optimization
 
 > Three hands-on notebooks that profile real GPU kernels and make a transformer
-> decode loop dramatically faster — roofline analysis, KV-cache optimization, and
+> decode loop dramatically faster: roofline analysis, KV-cache optimization, and
 > kernel-launch elimination with `torch.compile` and CUDA graphs.
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
@@ -20,15 +20,15 @@
 
 ## What This Project Demonstrates
 
-- **Roofline analysis** — placing real kernels on the memory-bound/compute-bound
+- **Roofline analysis**: placing real kernels on the memory-bound/compute-bound
   roofline of a specific GPU from first-principles measurements.
-- **Correct GPU timing** — CUDA-event timing with warmup, accounting for
+- **Correct GPU timing**: CUDA-event timing with warmup, accounting for
   asynchronous execution (no `time.time()` traps).
-- **Autoregressive decode optimization** — KV cache, removing per-step host
+- **Autoregressive decode optimization**: KV cache, removing per-step host
   syncs, bf16, for a **≥4×** end-to-end speedup with bit-exact greedy tokens.
-- **Profiling** — reading `torch.profiler` Chrome traces in Perfetto to find
+- **Profiling**: reading `torch.profiler` Chrome traces in Perfetto to find
   launch gaps, tiny-kernel runs, and host syncs.
-- **`torch.compile` & CUDA graphs** — eliminating graph breaks (`fullgraph=True`)
+- **`torch.compile` & CUDA graphs**: eliminating graph breaks (`fullgraph=True`)
   and capturing/replaying a decode step by hand to kill launch overhead.
 
 ## Quick Start
@@ -47,7 +47,7 @@ jupyter lab
 ```
 
 > **GPU required for real results.** The notebooks run on CPU as a correctness
-> smoke test but print warnings and trim work — all reported numbers must come
+> smoke test but print warnings and trim work: all reported numbers must come
 > from a GPU (H100 / L40S / T4).
 
 ## Notebooks
@@ -59,7 +59,7 @@ jupyter lab
 | [`hw3_compile_cuda_graphs.ipynb`](hw3_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw3_compile_cuda_graphs.ipynb) |
 
 Each notebook: a fixed harness, functions you implement, self-checks that must
-pass, and a short writeup. They build on each other — do them in order.
+pass, and a short writeup. They build on each other: do them in order.
 
 ## Architecture
 
@@ -70,10 +70,10 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 
 ## Tech Stack
 
-- **PyTorch ≥ 2.4** — CUDA events, `torch.compile`, `CUDAGraph`, BF16 tensor cores.
-- **transformers ≥ 4.42** — a tiny synthetic Llama + KV-cache API (HW2).
-- **matplotlib / numpy** — roofline and latency plots.
-- **No external inference engines** (vLLM / TensorRT-LLM / SGLang) by design —
+- **PyTorch ≥ 2.4**: CUDA events, `torch.compile`, `CUDAGraph`, BF16 tensor cores.
+- **transformers ≥ 4.42**: a tiny synthetic Llama + KV-cache API (HW2).
+- **matplotlib / numpy**: roofline and latency plots.
+- **No external inference engines** (vLLM / TensorRT-LLM / SGLang) by design:
   every optimization is built from PyTorch primitives.
 
 ## Example Results
@@ -98,10 +98,10 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 
 ## Docs
 
-- **[SPEC.md](SPEC.md)** — requirements as acceptance criteria + verification checklist.
-- **[PLAN.md](PLAN.md)** — architecture, dependency rules, diagrams, walkthroughs.
-- **[CLAUDE.md](CLAUDE.md)** — the learning blocks and how the project was built.
-- **[BREAKDOWN.md](BREAKDOWN.md)** — effort + ML concepts per block.
+- **[SPEC.md](SPEC.md)**: requirements as acceptance criteria + verification checklist.
+- **[PLAN.md](PLAN.md)**: architecture, dependency rules, diagrams, walkthroughs.
+- **[CLAUDE.md](CLAUDE.md)**: the learning blocks and how the project was built.
+- **[BREAKDOWN.md](BREAKDOWN.md)**: effort + ML concepts per block.
 
 ## License
 

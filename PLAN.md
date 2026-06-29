@@ -1,4 +1,4 @@
-# PLAN.md — Architecture
+# PLAN.md: Architecture
 
 > Companion to [SPEC.md](SPEC.md) (requirements) and [CLAUDE.md](CLAUDE.md)
 > (learning blocks). Effort + knowledge breakdown in [BREAKDOWN.md](BREAKDOWN.md).
@@ -9,7 +9,7 @@ This project is three Jupyter notebooks that teach GPU inference optimization by
 measurement: roofline analysis (HW1) → profiling and optimizing an
 autoregressive decode loop (HW2) → killing kernel-launch overhead with
 `torch.compile` and CUDA graphs (HW3). The stack is **PyTorch only** (plus
-`transformers` for the toy Llama, `matplotlib`/`numpy` for plots) — external
+`transformers` for the toy Llama, `matplotlib`/`numpy` for plots): external
 inference engines are banned. Code is written **in-notebook** (the deliverable is
 the executed notebook + `results/` artifacts), so "architecture" here means the
 **dependency discipline inside each notebook** and the **concept stack across the
@@ -38,12 +38,12 @@ layer never depends on a higher one, and you only ever write in Layer 2.**
           ───────────────────      HW1 lowest_ai_fn / make_compute_fn
                   │                 HW2 optimized_loop, generate_optimized
                   ▼                 HW3 fixed_decode_step, make_graphed_callable
- Layer 3  ANALYSIS (yours, prose) writeups — read artifacts Layer 0 produced
+ Layer 3  ANALYSIS (yours, prose) writeups: read artifacts Layer 0 produced
 ```
 
 Rule of thumb: **the harness calls down into your functions; your functions
 never reach up into harness internals** (don't depend on a `DO NOT EDIT` cell's
-locals — depend only on its documented inputs/outputs). Your Layer-2 functions
+locals: depend only on its documented inputs/outputs). Your Layer-2 functions
 may call your Layer-1 functions, never the reverse.
 
 ### 2b. The cross-notebook concept stack
@@ -61,7 +61,7 @@ HW2  time_loop (same timer idea)   bandwidth-bound decode (roofline lens, Q4)
      torch.compile / CUDA graphs (applied) ──┐       │
                                               ▼       ▼
 HW3  bench() (same timer idea)        profiler/roofline used to DETECT
-     graph breaks (why .item() is bad — seen in HW2)  when compile won't help
+     graph breaks (why .item() is bad: seen in HW2)  when compile won't help
      CUDA graphs by hand (what reduce-overhead automates)
 ```
 
@@ -98,7 +98,7 @@ gpu-cuda-inference-optimization/
 > No `.env` / `.env.example`: the project has **no secrets** (no API keys, no
 > remote services). Runtime selection is the Colab/GPU runtime, not a config var.
 
-## 4. Call Graph (per notebook — the "import graph" analogue)
+## 4. Call Graph (per notebook: the "import graph" analogue)
 
 In-notebook there are no module imports, so the contract is the **call graph**.
 Each must be acyclic; arrows mean "calls".
@@ -184,7 +184,7 @@ exposes.
 `achieved = min(peak_compute, peak_BW × AI)`. A point's vertical gap to the roof
 is unrealized performance.
 
-### 6b. Autoregressive decode — V0 vs optimized (HW2)
+### 6b. Autoregressive decode: V0 vs optimized (HW2)
 
 ```
  BASELINE V0 (no KV cache, O(n²)):           OPTIMIZED (KV cache, O(n)):
@@ -223,32 +223,32 @@ Two independent wins: **KV cache** removes redundant FLOPs/bytes; **dropping
 
 ## 7. State Shape (where the project is stateful)
 
-**HW2 — KV cache.** Per layer, `past_key_values` holds K and V of shape
+**HW2: KV cache.** Per layer, `past_key_values` holds K and V of shape
 `(batch=1, n_kv_heads=8, seq_len, head_dim=64)` and grows by **one** position
 each decode step. The optimized loop carries this forward instead of rebuilding
 it; the baseline discards it (`use_cache=False`).
 
-**HW3 — static graph buffers.** A captured graph owns fixed-address tensors:
+**HW3: static graph buffers.** A captured graph owns fixed-address tensors:
 `static_in` (shape `(1, 256)`, fp32) you `copy_` into, and `static_out` the
-replay overwrites. Replay is only valid for **identical shape/dtype/addresses** —
+replay overwrites. Replay is only valid for **identical shape/dtype/addresses**:
 hence `copy_` in, `clone()` out.
 
 ## 8. Example Walkthroughs
 
-**W1 — one roofline point (HW1, `elementwise` on H100, bf16).**
+**W1: one roofline point (HW1, `elementwise` on H100, bf16).**
 `ELEM_N = 1<<24` elements. Convention: ~1 FLOP/elem, read x + write y →
 `flops = 1.68e7`, `bytes = 2·1.68e7·2 = 6.7e7`. Say `benchmark_fn` returns
 `t = 21 µs`. Then `ai = flops/bytes ≈ 0.25 FLOP/byte` (deep memory-bound),
 `achieved_gbps = bytes/t/1e9 ≈ 3.2 TB/s` (near HBM peak). Point lands far
 left, high on the memory ceiling. ✔ matches 1.5.3.
 
-**W2 — one decode step (HW2).** Baseline step `t`: forward over `64+t` tokens,
+**W2: one decode step (HW2).** Baseline step `t`: forward over `64+t` tokens,
 `argmax`, `.item()` (CPU waits for GPU), `cat`. Optimized step `t`: forward over
 **1** token reusing `past_key_values`, `argmax`, append (no `.item()`). Over 128
 steps the baseline does ~`Σ(64+t)` token-forwards; the optimized does 64 (prefill)
-+ 128 (one each). Same greedy tokens (`torch.equal`), ≈4–10× faster on GPU.
++ 128 (one each). Same greedy tokens (`torch.equal`), ≈4-10× faster on GPU.
 
-**W3 — graph replay (HW3).** First `graphed(x)`: `static_in.copy_(x)` →
+**W3: graph replay (HW3).** First `graphed(x)`: `static_in.copy_(x)` →
 `g.replay()` fires the whole recorded kernel sequence in **one** launch →
 `static_out.clone()`. At batch 1 each kernel is launch-bound (Part 1 showed
 ~few-µs floor), so collapsing dozens of launches into one is the biggest single
@@ -256,7 +256,7 @@ speedup in the 4-way benchmark.
 
 ## 9. Artifacts / Persistence
 
-No database. Persistence = files under `results/hwN/` (git-ignored — they're
+No database. Persistence = files under `results/hwN/` (git-ignored: they're
 reproducible and can be large):
 
 | Artifact | Producer | Consumed by |
@@ -324,14 +324,14 @@ within and across notebooks:
 | `matplotlib` | `>=3.7` | roofline + latency plots. |
 | `numpy` | `>=1.24` | roofline grid math. |
 
-GPU runtime: **Colab (paid)**. See README for the runtime caveat — the HW1 spec
+GPU runtime: **Colab (paid)**. See README for the runtime caveat: the HW1 spec
 table only recognizes `H100`/`L40S`; on an A100/T4 it falls back to H100 ceilings
 (documented, not edited, since the cell is DO-NOT-EDIT).
 
 ## 14. Verification
 
 - **Source of truth:** [SPEC.md](SPEC.md) acceptance criteria + checklist.
-- **Smoke test (CPU, local macOS):** run each notebook's self-check cell — they
+- **Smoke test (CPU, local macOS):** run each notebook's self-check cell: they
   run anywhere and catch contract violations before you pay for GPU time.
   (HW3 Part 3 self-check `SKIP`s on CPU.)
 - **Real run (GPU, Colab):** top-to-bottom; confirm every checklist line and that

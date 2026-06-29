@@ -1,7 +1,7 @@
-# GPU & CUDA Inference Optimization — dependencies
+# GPU & CUDA Inference Optimization: dependencies
 #
 # On paid Google Colab, torch / numpy / matplotlib are preinstalled with a
-# CUDA build that matches the runtime — do NOT pip-install torch there (it can
+# CUDA build that matches the runtime: do NOT pip-install torch there (it can
 # replace the GPU build with a CPU one). You typically only need transformers:
 #     pip install -q "transformers>=4.42,<5"
 #

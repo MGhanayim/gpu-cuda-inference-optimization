@@ -8,7 +8,7 @@ env/
 # Notebooks
 .ipynb_checkpoints/
 
-# Generated artifacts (reproducible — re-create with a GPU run)
+# Generated artifacts (reproducible: re-create with a GPU run)
 results/**
 # ...but keep the lightweight demo plots so the README renders on GitHub
 !results/
