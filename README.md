@@ -11,12 +11,13 @@
 
 ## Demo
 
-<!-- TODO: drop the generated plots here after a GPU run -->
-| Roofline (HW1) | Decode-step latency (HW3) |
+| Roofline (HW1, A100) | Decode-step latency (HW3, batch 1) |
 |---|---|
-| `results/hw1/roofline.png` | `results/hw3/decode_step_latency.png` |
+| ![HW1 roofline](results/hw1/roofline_a100.png) | ![HW3 decode-step latency](results/hw3/decode_step_latency.png) |
 
-<!-- e.g. "optimized decode: 4.8× faster than the naive baseline on an L40S" -->
+Optimized greedy decode runs **4.21× faster** than the naive baseline on an A100
+(fp32 KV cache, bit-exact tokens), and a hand-rolled CUDA graph replays a batch-1
+decode step at **5.38× over eager**.
 
 ## What This Project Demonstrates
 
@@ -78,11 +79,21 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 
 ## Example Results
 
-<!-- TODO after GPU run, e.g.:
-- HW1: matmul-N marches toward the compute ceiling; elementwise sits on the BW roof.
-- HW2: baseline V0 → +KV cache → +bf16 → +compile = 4.8× end-to-end, tokens bit-exact.
-- HW3: manual CUDA-graph replay ~6× over eager at batch 1.
--->
+Measured on a paid Colab **A100-SXM4-40GB** (absolute numbers vary by GPU; the
+relative results are the point):
+
+- **HW1 (roofline):** the elementwise op sits on the bandwidth roof (AI = 0.25,
+  ~1257 GB/s, ~81% of the A100's HBM bandwidth), while the N x N x N matmul climbs
+  the ridge toward the compute ceiling (N=4096 reaches ~270 TFLOP/s, ~87% of the
+  A100's BF16 peak).
+- **HW2 (decode):** V0 baseline 1723 ms -> fp32 KV cache 410 ms = **4.21×**
+  (excellent tier), greedy tokens bit-exact. bf16 measured *slower* (432 ms) and
+  was dropped: this batch-1 toy decode is launch-bound, not bandwidth-bound, so
+  halving the bytes buys nothing.
+- **HW3 (launch overhead):** per-launch cost ~11 µs; a hand-rolled CUDA graph
+  replays the decode step at **5.38×** over eager (435.6 -> 80.9 µs/step) at
+  batch 1. `torch.compile` default came in at 0.98× (fusion does not cut launch
+  overhead), and reduce-overhead errored on the static-buffer constraint.
 
 ## Project Structure
 
