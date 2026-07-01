@@ -32,3 +32,6 @@ results/**/trace_*.json
 .DS_Store
 .idea/
 .vscode/
+
+# Submission bundles (built locally for upload, not part of the repo)
+*.zip
