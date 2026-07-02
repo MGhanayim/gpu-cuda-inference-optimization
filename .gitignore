@@ -12,13 +12,13 @@ env/
 results/**
 # ...but keep the lightweight demo plots so the README renders on GitHub
 !results/
-!results/hw1/
-!results/hw1/roofline.png
-!results/hw1/roofline_a100.png
-!results/hw1/roofline_data.json
-!results/hw3/
-!results/hw3/launch_overhead.png
-!results/hw3/decode_step_latency.png
+!results/01_roofline/
+!results/01_roofline/roofline.png
+!results/01_roofline/roofline_a100.png
+!results/01_roofline/roofline_data.json
+!results/03_compile_cuda_graphs/
+!results/03_compile_cuda_graphs/launch_overhead.png
+!results/03_compile_cuda_graphs/decode_step_latency.png
 # heavy Chrome traces stay ignored (multi-MB)
 results/**/trace_*.json
 
@@ -33,5 +33,5 @@ results/**/trace_*.json
 .idea/
 .vscode/
 
-# Submission bundles (built locally for upload, not part of the repo)
+# Local zip bundles (not part of the repo)
 *.zip

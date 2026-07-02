@@ -1,14 +1,14 @@
 # PLAN.md: Architecture
 
 > Companion to [SPEC.md](SPEC.md) (requirements) and [CLAUDE.md](CLAUDE.md)
-> (learning blocks). Effort + knowledge breakdown in [BREAKDOWN.md](BREAKDOWN.md).
+> (implementation blocks).
 
 ## 1. Context
 
 This project is three Jupyter notebooks that teach GPU inference optimization by
-measurement: roofline analysis (HW1) → profiling and optimizing an
-autoregressive decode loop (HW2) → killing kernel-launch overhead with
-`torch.compile` and CUDA graphs (HW3). The stack is **PyTorch only** (plus
+measurement: roofline analysis (01) → profiling and optimizing an
+autoregressive decode loop (02) → killing kernel-launch overhead with
+`torch.compile` and CUDA graphs (03). The stack is **PyTorch only** (plus
 `transformers` for the toy Llama, `matplotlib`/`numpy` for plots): external
 inference engines are banned. Code is written **in-notebook** (the deliverable is
 the executed notebook + `results/` artifacts), so "architecture" here means the
@@ -26,23 +26,23 @@ Every notebook is the same four conceptual layers, top to bottom. **A lower
 layer never depends on a higher one, and you only ever write in Layer 2.**
 
 ```
- Layer 0  HARNESS (DO NOT EDIT)   specs, model/data builders, timers,
-          ────────────────────    plotters, self-checks, run + writeup cells
+ Layer 0  HARNESS (fixed)         specs, model/data builders, timers,
+          ────────────────────    plotters, self-checks, run + analysis cells
                   │ provides fixtures & contracts (calls DOWN into Layer 2)
                   ▼
  Layer 1  PRIMITIVES (yours)      one concept each, no cross-deps:
-          ──────────────────       HW1 benchmark_fn, compute_metrics
-                  │                 HW3 sweep_elementwise_times
+          ──────────────────       01: benchmark_fn, compute_metrics
+                  │                 03: sweep_elementwise_times
                   ▼
  Layer 2  COMPOSITION (yours)     builds on Layer 1 primitives:
-          ───────────────────      HW1 lowest_ai_fn / make_compute_fn
-                  │                 HW2 optimized_loop, generate_optimized
-                  ▼                 HW3 fixed_decode_step, make_graphed_callable
- Layer 3  ANALYSIS (yours, prose) writeups: read artifacts Layer 0 produced
+          ───────────────────      01: lowest_ai_fn / make_compute_fn
+                  │                 02: optimized_loop, generate_optimized
+                  ▼                 03: fixed_decode_step, make_graphed_callable
+ Layer 3  ANALYSIS (yours, prose) analyses: read artifacts Layer 0 produced
 ```
 
 Rule of thumb: **the harness calls down into your functions; your functions
-never reach up into harness internals** (don't depend on a `DO NOT EDIT` cell's
+never reach up into harness internals** (don't depend on a `HARNESS` cell's
 locals: depend only on its documented inputs/outputs). Your Layer-2 functions
 may call your Layer-1 functions, never the reverse.
 
@@ -52,44 +52,44 @@ The notebooks are ordered; each reuses the prior one's *concepts* (you re-type
 the code, but the idea is assumed learned):
 
 ```
-HW1  CUDA-event timing ──────────────┐ "the timer you built yourself in HW1"
+01   CUDA-event timing ──────────────┐ "the same CUDA-event timer built in notebook 01"
      roofline / arithmetic intensity ─┼──────────────┐
                                        ▼              ▼
-HW2  time_loop (same timer idea)   bandwidth-bound decode (roofline lens, Q4)
+02   time_loop (same timer idea)   bandwidth-bound decode (roofline lens, §4)
      torch.profiler ────────────────────────────────┐
      KV cache, kill host syncs                       │
      torch.compile / CUDA graphs (applied) ──┐       │
                                               ▼       ▼
-HW3  bench() (same timer idea)        profiler/roofline used to DETECT
-     graph breaks (why .item() is bad: seen in HW2)  when compile won't help
+03   bench() (same timer idea)        profiler/roofline used to DETECT
+     graph breaks (why .item() is bad: seen in 02)   when compile won't help
      CUDA graphs by hand (what reduce-overhead automates)
 ```
 
-**Dependency direction:** HW3 assumes HW1+HW2; HW2 assumes HW1. Never the
+**Dependency direction:** 03 assumes 01+02; 02 assumes 01. Never the
 reverse. Finish notebooks in order.
 
 ## 3. Project Structure
 
 ```
 gpu-cuda-inference-optimization/
-├── hw1_roofline.ipynb            # HW1: roofline & arithmetic intensity
-├── hw2_decode_optimization.ipynb # HW2: profile + optimize a decode loop
-├── hw3_compile_cuda_graphs.ipynb # HW3: torch.compile & CUDA graphs
-├── results/                      # generated artifacts (git-ignored)
-│   ├── hw1/
+├── 01_roofline.ipynb             # roofline & arithmetic intensity
+├── 02_decode_optimization.ipynb  # profile + optimize a decode loop
+├── 03_compile_cuda_graphs.ipynb  # torch.compile & CUDA graphs
+├── results/                      # generated artifacts (git-ignored except demo plots)
+│   ├── 01_roofline/
 │   │   ├── roofline_data.json    #   sweep coordinates
-│   │   └── roofline.png          #   the roofline plot
-│   ├── hw2/
+│   │   ├── roofline.png          #   the roofline plot
+│   │   └── roofline_a100.png     #   re-drawn against honest A100 ceilings
+│   ├── 02_decode_optimization/
 │   │   ├── trace_baseline.json   #   Chrome trace, V0 baseline
 │   │   ├── trace_optimized.json  #   Chrome trace, optimized loop
 │   │   └── trace_check.json      #   self-check trace
-│   └── hw3/
+│   └── 03_compile_cuda_graphs/
 │       ├── launch_overhead.png   #   latency vs tensor size
 │       └── decode_step_latency.png  # 4-way decode benchmark
 ├── SPEC.md                       # requirements & acceptance criteria
 ├── PLAN.md                       # this file
-├── CLAUDE.md                     # learning blocks + teaching-mode rules
-├── BREAKDOWN.md                  # effort + knowledge per block
+├── CLAUDE.md                     # implementation blocks + working rules
 ├── README.md                     # portfolio front door
 ├── requirements.txt              # pinned deps (reproducibility)
 └── .gitignore
@@ -103,30 +103,30 @@ gpu-cuda-inference-optimization/
 In-notebook there are no module imports, so the contract is the **call graph**.
 Each must be acyclic; arrows mean "calls".
 
-**HW1**
+**Notebook 01**
 ```
                  ┌─────────────── benchmark_fn ◄── (timer primitive)
  run cell ──────►│                    ▲
- (DO NOT EDIT)   ├─ lowest_ai_fn      │ (timed by)
+ (harness)       ├─ lowest_ai_fn      │ (timed by)
                  ├─ make_compute_fn ──┘
                  └─ compute_metrics ◄── (metrics primitive)
                           │
                           ▼
-                 plot_roofline (DO NOT EDIT)
+                 plot_roofline (harness)
 ```
 
-**HW2**
+**Notebook 02**
 ```
  run cell ──► optimized_loop ──► model.forward(use_cache=True, past_key_values)
- (DO NOT EDIT) generate_optimized ──► build model (bf16?) ──► time_loop (harness)
+ (harness)     generate_optimized ──► build model (bf16?) ──► time_loop (harness)
               profile ──► torch.profiler ──► Chrome trace file
               (correctness: check_correctness vs baseline_loop)   [harness]
 ```
 
-**HW3**
+**Notebook 03**
 ```
  run cell ──► sweep_elementwise_times ──► bench (harness)
- (DO NOT EDIT) estimate_launch_overhead_us ──► (consumes sweep output)
+ (harness)     estimate_launch_overhead_us ──► (consumes sweep output)
               fixed_decode_step ──► torch.compile(fullgraph=True)
               make_graphed_callable ──► CUDAGraph capture/replay
 ```
@@ -155,17 +155,17 @@ If a reader sees one diagram, this is the pipeline every notebook instantiates:
                          results/ : .json · .png · trace
                                     │
                                     ▼
-                              WRITEUP (prose)
+                              FINDINGS (prose)
 ```
 
-HW1 instruments the **whole roofline** (many workloads, one timer). HW2 swaps the
+Notebook 01 instruments the **whole roofline** (many workloads, one timer). Notebook 02 swaps the
 workload for a **decode loop** and adds the **profiler** as the measurement.
-HW3 zooms into **one decode step** and attacks the **launch overhead** the timer
+Notebook 03 zooms into **one decode step** and attacks the **launch overhead** the timer
 exposes.
 
 ## 6. Core Mechanic Diagrams
 
-### 6a. The roofline (HW1)
+### 6a. The roofline (notebook 01)
 
 ```
  TFLOP/s
@@ -184,7 +184,7 @@ exposes.
 `achieved = min(peak_compute, peak_BW × AI)`. A point's vertical gap to the roof
 is unrealized performance.
 
-### 6b. Autoregressive decode: V0 vs optimized (HW2)
+### 6b. Autoregressive decode: V0 vs optimized (notebook 02)
 
 ```
  BASELINE V0 (no KV cache, O(n²)):           OPTIMIZED (KV cache, O(n)):
@@ -203,7 +203,7 @@ Two independent wins: **KV cache** removes redundant FLOPs/bytes; **dropping
 `.item()`** removes a CPU↔GPU serialization each step. bf16 + `compile`/graphs in
 `generate_optimized` add launch-overhead and bandwidth wins on top.
 
-### 6c. Graph breaks & CUDA-graph capture (HW3)
+### 6c. Graph breaks & CUDA-graph capture (notebook 03)
 
 ```
  GRAPH BREAK (what NOT to do)            CUDA GRAPH (capture once, replay N×)
@@ -223,32 +223,32 @@ Two independent wins: **KV cache** removes redundant FLOPs/bytes; **dropping
 
 ## 7. State Shape (where the project is stateful)
 
-**HW2: KV cache.** Per layer, `past_key_values` holds K and V of shape
+**Notebook 02: KV cache.** Per layer, `past_key_values` holds K and V of shape
 `(batch=1, n_kv_heads=8, seq_len, head_dim=64)` and grows by **one** position
 each decode step. The optimized loop carries this forward instead of rebuilding
 it; the baseline discards it (`use_cache=False`).
 
-**HW3: static graph buffers.** A captured graph owns fixed-address tensors:
+**Notebook 03: static graph buffers.** A captured graph owns fixed-address tensors:
 `static_in` (shape `(1, 256)`, fp32) you `copy_` into, and `static_out` the
 replay overwrites. Replay is only valid for **identical shape/dtype/addresses**:
 hence `copy_` in, `clone()` out.
 
 ## 8. Example Walkthroughs
 
-**W1: one roofline point (HW1, `elementwise` on H100, bf16).**
+**W1: one roofline point (notebook 01, `elementwise` on H100, bf16).**
 `ELEM_N = 1<<24` elements. Convention: ~1 FLOP/elem, read x + write y →
 `flops = 1.68e7`, `bytes = 2·1.68e7·2 = 6.7e7`. Say `benchmark_fn` returns
 `t = 21 µs`. Then `ai = flops/bytes ≈ 0.25 FLOP/byte` (deep memory-bound),
 `achieved_gbps = bytes/t/1e9 ≈ 3.2 TB/s` (near HBM peak). Point lands far
 left, high on the memory ceiling. ✔ matches 1.5.3.
 
-**W2: one decode step (HW2).** Baseline step `t`: forward over `64+t` tokens,
+**W2: one decode step (notebook 02).** Baseline step `t`: forward over `64+t` tokens,
 `argmax`, `.item()` (CPU waits for GPU), `cat`. Optimized step `t`: forward over
 **1** token reusing `past_key_values`, `argmax`, append (no `.item()`). Over 128
 steps the baseline does ~`Σ(64+t)` token-forwards; the optimized does 64 (prefill)
 + 128 (one each). Same greedy tokens (`torch.equal`), ≈4-10× faster on GPU.
 
-**W3: graph replay (HW3).** First `graphed(x)`: `static_in.copy_(x)` →
+**W3: graph replay (notebook 03).** First `graphed(x)`: `static_in.copy_(x)` →
 `g.replay()` fires the whole recorded kernel sequence in **one** launch →
 `static_out.clone()`. At batch 1 each kernel is launch-bound (Part 1 showed
 ~few-µs floor), so collapsing dozens of launches into one is the biggest single
@@ -256,17 +256,17 @@ speedup in the 4-way benchmark.
 
 ## 9. Artifacts / Persistence
 
-No database. Persistence = files under `results/hwN/` (git-ignored: they're
+No database. Persistence = files under the notebook's `results/` subfolder (git-ignored: they're
 reproducible and can be large):
 
 | Artifact | Producer | Consumed by |
 |----------|----------|-------------|
-| `hw1/roofline_data.json` | HW1 run cell | inspection; the writeup |
-| `hw1/roofline.png` | `plot_roofline` | README demo; Q1/Q2 |
-| `hw2/trace_baseline.json` | `profile(baseline_loop,…)` | Perfetto; Q1 |
-| `hw2/trace_optimized.json` | `profile(optimized_loop,…)` | Perfetto; Q1 |
-| `hw3/launch_overhead.png` | HW3 Part 1 run cell | Q2 |
-| `hw3/decode_step_latency.png` | HW3 final benchmark | README demo; Q2 |
+| `01_roofline/roofline_data.json` | notebook 01 run cell | inspection; the analysis |
+| `01_roofline/roofline.png` | `plot_roofline` | README demo; analysis §1/§2 |
+| `02_decode_optimization/trace_baseline.json` | `profile(baseline_loop,…)` | Perfetto; analysis §1 |
+| `02_decode_optimization/trace_optimized.json` | `profile(optimized_loop,…)` | Perfetto; analysis §1 |
+| `03_compile_cuda_graphs/launch_overhead.png` | notebook 03 Part 1 run cell | analysis §2 |
+| `03_compile_cuda_graphs/decode_step_latency.png` | notebook 03 final benchmark | README demo; analysis §2 |
 
 Traces open at [ui.perfetto.dev](https://ui.perfetto.dev).
 
@@ -274,17 +274,17 @@ Traces open at [ui.perfetto.dev](https://ui.perfetto.dev).
 
 | Notebook | Function | Layer | Purpose |
 |----------|----------|-------|---------|
-| HW1 | `benchmark_fn` | 1 | CUDA-event timer; avg seconds/call |
-| HW1 | `compute_metrics` | 1 | (flops, bytes, sec) → {ai, tflops, gbps} |
-| HW1 | `lowest_ai_fn` | 2 | lowest-AI elementwise workload |
-| HW1 | `make_compute_fn` | 2 | tunable-K chained elementwise workload |
-| HW2 | `profile` | 2 | run a loop under `torch.profiler` + trace |
-| HW2 | `optimized_loop` | 2 | fast greedy decode, exact tokens |
-| HW2 | `generate_optimized` | 2 | build + warm up + time the fast path |
-| HW3 | `sweep_elementwise_times` | 1 | latency vs tensor size |
-| HW3 | `estimate_launch_overhead_us` | 1 | per-launch floor from the sweep |
-| HW3 | `fixed_decode_step` | 2 | break-free rewrite of the decode step |
-| HW3 | `make_graphed_callable` | 2 | manual CUDA-graph capture/replay |
+| 01 | `benchmark_fn` | 1 | CUDA-event timer; avg seconds/call |
+| 01 | `compute_metrics` | 1 | (flops, bytes, sec) → {ai, tflops, gbps} |
+| 01 | `lowest_ai_fn` | 2 | lowest-AI elementwise workload |
+| 01 | `make_compute_fn` | 2 | tunable-K chained elementwise workload |
+| 02 | `profile` | 2 | run a loop under `torch.profiler` + trace |
+| 02 | `optimized_loop` | 2 | fast greedy decode, exact tokens |
+| 02 | `generate_optimized` | 2 | build + warm up + time the fast path |
+| 03 | `sweep_elementwise_times` | 1 | latency vs tensor size |
+| 03 | `estimate_launch_overhead_us` | 1 | per-launch floor from the sweep |
+| 03 | `fixed_decode_step` | 2 | break-free rewrite of the decode step |
+| 03 | `make_graphed_callable` | 2 | manual CUDA-graph capture/replay |
 
 ## 11. API Surface (signatures you must match exactly)
 
@@ -308,12 +308,12 @@ Mirrors the blocks in [CLAUDE.md](CLAUDE.md). Foundation → features → polish
 within and across notebooks:
 
 1. **1A** `benchmark_fn` (timer) → **1B** `compute_metrics` → **1C**
-   `lowest_ai_fn` + `make_compute_fn` + run sweep → **1D** HW1 writeup.
+   `lowest_ai_fn` + `make_compute_fn` + run sweep → **1D** notebook 01 analysis.
 2. **2A** `profile` → **2B** `optimized_loop` (KV cache, no sync) → **2C**
-   `generate_optimized` (bf16/compile/graphs, hit ≥4×) → **2D** HW2 writeup.
+   `generate_optimized` (dtype ablation, hit ≥4×) → **2D** notebook 02 analysis.
 3. **3A** `sweep_elementwise_times` + `estimate_launch_overhead_us` → **3B**
    `fixed_decode_step` → **3C** `make_graphed_callable` + final benchmark →
-   **3D** HW3 writeup.
+   **3D** notebook 03 analysis.
 
 ## 13. Key Dependencies
 
@@ -324,15 +324,15 @@ within and across notebooks:
 | `matplotlib` | `>=3.7` | roofline + latency plots. |
 | `numpy` | `>=1.24` | roofline grid math. |
 
-GPU runtime: **Colab (paid)**. See README for the runtime caveat: the HW1 spec
+GPU runtime: **Colab (paid)**. See README for the runtime caveat: the notebook 01 spec
 table only recognizes `H100`/`L40S`; on an A100/T4 it falls back to H100 ceilings
-(documented, not edited, since the cell is DO-NOT-EDIT).
+(documented in the analysis, since the cell is fixed harness).
 
 ## 14. Verification
 
 - **Source of truth:** [SPEC.md](SPEC.md) acceptance criteria + checklist.
 - **Smoke test (CPU, local macOS):** run each notebook's self-check cell: they
   run anywhere and catch contract violations before you pay for GPU time.
-  (HW3 Part 3 self-check `SKIP`s on CPU.)
+  (Notebook 03's Part 3 self-check `SKIP`s on CPU.)
 - **Real run (GPU, Colab):** top-to-bottom; confirm every checklist line and that
   `results/` is populated. Reported numbers must be the GPU numbers.

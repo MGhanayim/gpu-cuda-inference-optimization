@@ -11,9 +11,9 @@
 
 ## Demo
 
-| Roofline (HW1, A100) | Decode-step latency (HW3, batch 1) |
+| Roofline (notebook 01, A100) | Decode-step latency (notebook 03, batch 1) |
 |---|---|
-| ![HW1 roofline](results/hw1/roofline_a100.png) | ![HW3 decode-step latency](results/hw3/decode_step_latency.png) |
+| ![Roofline on A100](results/01_roofline/roofline_a100.png) | ![Decode-step latency](results/03_compile_cuda_graphs/decode_step_latency.png) |
 
 Optimized greedy decode runs **4.21× faster** than the naive baseline on an A100
 (fp32 KV cache, bit-exact tokens), and a hand-rolled CUDA graph replays a batch-1
@@ -26,7 +26,8 @@ decode step at **5.38× over eager**.
 - **Correct GPU timing**: CUDA-event timing with warmup, accounting for
   asynchronous execution (no `time.time()` traps).
 - **Autoregressive decode optimization**: KV cache, removing per-step host
-  syncs, bf16, for a **≥4×** end-to-end speedup with bit-exact greedy tokens.
+  syncs, and a measured bf16 ablation, for a **≥4×** end-to-end speedup with
+  bit-exact greedy tokens.
 - **Profiling**: reading `torch.profiler` Chrome traces in Perfetto to find
   launch gaps, tiny-kernel runs, and host syncs.
 - **`torch.compile` & CUDA graphs**: eliminating graph breaks (`fullgraph=True`)
@@ -55,12 +56,12 @@ jupyter lab
 
 | Notebook | Topic | You build | Run |
 |----------|-------|-----------|-----|
-| [`hw1_roofline.ipynb`](hw1_roofline.ipynb) | Roofline & arithmetic intensity | CUDA-event timer, roofline metrics, memory-/compute-bound workloads | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw1_roofline.ipynb) |
-| [`hw2_decode_optimization.ipynb`](hw2_decode_optimization.ipynb) | Profile & optimize a decode loop | profiler wrapper, KV-cache greedy decode, timed bf16 run | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw2_decode_optimization.ipynb) |
-| [`hw3_compile_cuda_graphs.ipynb`](hw3_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/hw3_compile_cuda_graphs.ipynb) |
+| [`01_roofline.ipynb`](01_roofline.ipynb) | Roofline & arithmetic intensity | CUDA-event timer, roofline metrics, memory-/compute-bound workloads | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/01_roofline.ipynb) |
+| [`02_decode_optimization.ipynb`](02_decode_optimization.ipynb) | Profile & optimize a decode loop | profiler wrapper, KV-cache greedy decode, timed optimized run | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/02_decode_optimization.ipynb) |
+| [`03_compile_cuda_graphs.ipynb`](03_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/03_compile_cuda_graphs.ipynb) |
 
-Each notebook: a fixed harness, functions you implement, self-checks that must
-pass, and a short writeup. They build on each other: do them in order.
+Each notebook: a fixed harness, functions implemented against it, self-checks
+that must pass, and a short analysis. They build on each other: do them in order.
 
 ## Architecture
 
@@ -72,7 +73,7 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 ## Tech Stack
 
 - **PyTorch ≥ 2.4**: CUDA events, `torch.compile`, `CUDAGraph`, BF16 tensor cores.
-- **transformers ≥ 4.42**: a tiny synthetic Llama + KV-cache API (HW2).
+- **transformers ≥ 4.42**: a tiny synthetic Llama + KV-cache API (notebook 02).
 - **matplotlib / numpy**: roofline and latency plots.
 - **No external inference engines** (vLLM / TensorRT-LLM / SGLang) by design:
   every optimization is built from PyTorch primitives.
@@ -82,15 +83,15 @@ diagrams are in **[PLAN.md](PLAN.md)**.
 Measured on a paid Colab **A100-SXM4-40GB** (absolute numbers vary by GPU; the
 relative results are the point):
 
-- **HW1 (roofline):** the elementwise op sits on the bandwidth roof (AI = 0.25,
+- **Notebook 01 (roofline):** the elementwise op sits on the bandwidth roof (AI = 0.25,
   ~1257 GB/s, ~81% of the A100's HBM bandwidth), while the N x N x N matmul climbs
   the ridge toward the compute ceiling (N=4096 reaches ~270 TFLOP/s, ~87% of the
   A100's BF16 peak).
-- **HW2 (decode):** V0 baseline 1723 ms -> fp32 KV cache 410 ms = **4.21×**
+- **Notebook 02 (decode):** V0 baseline 1723 ms -> fp32 KV cache 410 ms = **4.21×**
   (excellent tier), greedy tokens bit-exact. bf16 measured *slower* (432 ms) and
   was dropped: this batch-1 toy decode is launch-bound, not bandwidth-bound, so
   halving the bytes buys nothing.
-- **HW3 (launch overhead):** per-launch cost ~11 µs; a hand-rolled CUDA graph
+- **Notebook 03 (launch overhead):** per-launch cost ~11 µs; a hand-rolled CUDA graph
   replays the decode step at **5.38×** over eager (435.6 -> 80.9 µs/step) at
   batch 1. `torch.compile` default came in at 0.98× (fusion does not cut launch
   overhead), and reduce-overhead errored on the static-buffer constraint.
@@ -99,11 +100,11 @@ relative results are the point):
 
 ```
 .
-├── hw1_roofline.ipynb            # roofline & arithmetic intensity
-├── hw2_decode_optimization.ipynb # profile + optimize a decode loop
-├── hw3_compile_cuda_graphs.ipynb # torch.compile & CUDA graphs
-├── results/                      # generated plots, JSON, traces (git-ignored)
-├── SPEC.md   PLAN.md   CLAUDE.md   BREAKDOWN.md   # planning & learning docs
+├── 01_roofline.ipynb             # roofline & arithmetic intensity
+├── 02_decode_optimization.ipynb  # profile + optimize a decode loop
+├── 03_compile_cuda_graphs.ipynb  # torch.compile & CUDA graphs
+├── results/                      # plots, JSON, traces (git-ignored except demo plots)
+├── SPEC.md   PLAN.md   CLAUDE.md # project docs
 └── requirements.txt
 ```
 
@@ -126,7 +127,7 @@ relative results are the point):
 - **Kernel:** a single function that runs on the GPU, executed in parallel by
   many threads. Each PyTorch op (`sin`, `add`, `matmul`) launches one or more
   kernels, and every launch costs the CPU a fixed few microseconds regardless of
-  the work (the launch overhead measured in HW3).
+  the work (the launch overhead measured in notebook 03).
 - **HBM (High Bandwidth Memory):** the GPU's main memory (its VRAM, for example
   40 GB on an A100-40GB) with very high bandwidth (about 1.5 TB/s). Reading
   inputs from HBM and writing results back (an "HBM round-trip") is what limits
@@ -138,14 +139,13 @@ relative results are the point):
   *fused* kernels. For an op chain it fuses many ops into one kernel (read from
   HBM once, compute in registers, write once), cutting launches and HBM
   round-trips. It costs a one-time compile (so timing needs warmup) and can
-  "graph break" on some Python constructs (the subject of HW3).
+  "graph break" on some Python constructs (the subject of notebook 03).
 
 ## Docs
 
 - **[SPEC.md](SPEC.md)**: requirements as acceptance criteria + verification checklist.
 - **[PLAN.md](PLAN.md)**: architecture, dependency rules, diagrams, walkthroughs.
-- **[CLAUDE.md](CLAUDE.md)**: the learning blocks and how the project was built.
-- **[BREAKDOWN.md](BREAKDOWN.md)**: effort + ML concepts per block.
+- **[CLAUDE.md](CLAUDE.md)**: the implementation blocks and how the project was built.
 
 ## License
 
