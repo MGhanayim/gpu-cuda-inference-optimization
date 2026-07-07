@@ -18,7 +18,7 @@ notebook ships a **fixed harness** (cells marked *HARNESS*), a set of
 measured numbers. The arc builds on itself:
 
 1. **01, Roofline & Arithmetic Intensity:** measure real kernels and place
-   them on the roofline of your card (memory-bound vs compute-bound).
+   them on the roofline of the card they ran on (memory-bound vs compute-bound).
 2. **02, Profile & Optimize a Decode Loop:** profile a deliberately slow
    autoregressive decode loop and write a fast, numerically identical
    replacement (KV cache, kill host syncs, dtype ablation).

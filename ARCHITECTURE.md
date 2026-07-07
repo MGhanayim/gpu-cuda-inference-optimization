@@ -1,7 +1,6 @@
-# PLAN.md: Architecture
+# Architecture
 
-> Companion to [SPEC.md](SPEC.md) (requirements) and [CLAUDE.md](CLAUDE.md)
-> (implementation blocks).
+> Companion to [SPEC.md](SPEC.md) (requirements & measured acceptance criteria).
 
 ## 1. Context
 
@@ -23,33 +22,33 @@ contracts govern the work.
 ### 2a. The in-notebook cell contract (per notebook)
 
 Every notebook is the same four conceptual layers, top to bottom. **A lower
-layer never depends on a higher one, and you only ever write in Layer 2.**
+layer never depends on a higher one, and all authored code lives in Layer 2.**
 
 ```
  Layer 0  HARNESS (fixed)         specs, model/data builders, timers,
           ────────────────────    plotters, self-checks, run + analysis cells
                   │ provides fixtures & contracts (calls DOWN into Layer 2)
                   ▼
- Layer 1  PRIMITIVES (yours)      one concept each, no cross-deps:
+ Layer 1  PRIMITIVES (authored)   one concept each, no cross-deps:
           ──────────────────       01: benchmark_fn, compute_metrics
                   │                 03: sweep_elementwise_times
                   ▼
- Layer 2  COMPOSITION (yours)     builds on Layer 1 primitives:
+ Layer 2  COMPOSITION (authored)  builds on Layer 1 primitives:
           ───────────────────      01: lowest_ai_fn / make_compute_fn
                   │                 02: optimized_loop, generate_optimized
                   ▼                 03: fixed_decode_step, make_graphed_callable
- Layer 3  ANALYSIS (yours, prose) analyses: read artifacts Layer 0 produced
+ Layer 3  ANALYSIS (authored)     analyses: read artifacts Layer 0 produced
 ```
 
-Rule of thumb: **the harness calls down into your functions; your functions
-never reach up into harness internals** (don't depend on a `HARNESS` cell's
-locals: depend only on its documented inputs/outputs). Your Layer-2 functions
-may call your Layer-1 functions, never the reverse.
+Rule of thumb: **the harness calls down into the authored functions; they
+never reach up into harness internals** (nothing depends on a `HARNESS` cell's
+locals, only on its documented inputs/outputs). Layer-2 functions may call
+Layer-1 functions, never the reverse.
 
 ### 2b. The cross-notebook concept stack
 
-The notebooks are ordered; each reuses the prior one's *concepts* (you re-type
-the code, but the idea is assumed learned):
+The notebooks are ordered; each reuses the prior one's *concepts* (the code is
+rebuilt fresh, but the idea carries over):
 
 ```
 01   CUDA-event timing ──────────────┐ "the same CUDA-event timer built in notebook 01"
@@ -66,7 +65,7 @@ the code, but the idea is assumed learned):
 ```
 
 **Dependency direction:** 03 assumes 01+02; 02 assumes 01. Never the
-reverse. Finish notebooks in order.
+reverse; the notebooks read (and were built) in order.
 
 ## 3. Project Structure
 
@@ -88,8 +87,8 @@ gpu-cuda-inference-optimization/
 │       ├── launch_overhead.png   #   latency vs tensor size
 │       └── decode_step_latency.png  # 4-way decode benchmark
 ├── SPEC.md                       # requirements & acceptance criteria
-├── PLAN.md                       # this file
-├── CLAUDE.md                     # implementation blocks + working rules
+├── ARCHITECTURE.md               # this file
+├── CLAUDE.md                     # working rules for AI-assisted sessions
 ├── README.md                     # portfolio front door
 ├── requirements.txt              # pinned deps (reproducibility)
 └── .gitignore
@@ -131,7 +130,7 @@ Each must be acyclic; arrows mean "calls".
               make_graphed_callable ──► CUDAGraph capture/replay
 ```
 
-No cycles in any notebook. Your Layer-2 functions fan out to Layer-1 primitives
+No cycles in any notebook. Layer-2 functions fan out to Layer-1 primitives
 and harness fixtures only.
 
 ## 5. High-Level System Architecture
@@ -229,7 +228,7 @@ each decode step. The optimized loop carries this forward instead of rebuilding
 it; the baseline discards it (`use_cache=False`).
 
 **Notebook 03: static graph buffers.** A captured graph owns fixed-address tensors:
-`static_in` (shape `(1, 256)`, fp32) you `copy_` into, and `static_out` the
+`static_in` (shape `(1, 256)`, fp32) that new data is `copy_`'d into, and `static_out` the
 replay overwrites. Replay is only valid for **identical shape/dtype/addresses**:
 hence `copy_` in, `clone()` out.
 
@@ -270,7 +269,7 @@ reproducible and can be large):
 
 Traces open at [ui.perfetto.dev](https://ui.perfetto.dev).
 
-## 10. Component Organization (functions you implement)
+## 10. Component Organization (implemented functions)
 
 | Notebook | Function | Layer | Purpose |
 |----------|----------|-------|---------|
@@ -286,7 +285,7 @@ Traces open at [ui.perfetto.dev](https://ui.perfetto.dev).
 | 03 | `fixed_decode_step` | 2 | break-free rewrite of the decode step |
 | 03 | `make_graphed_callable` | 2 | manual CUDA-graph capture/replay |
 
-## 11. API Surface (signatures you must match exactly)
+## 11. API Surface (signatures matched exactly)
 
 | Function | Signature | Returns |
 |----------|-----------|---------|
@@ -304,16 +303,15 @@ Traces open at [ui.perfetto.dev](https://ui.perfetto.dev).
 
 ## 12. Implementation Order
 
-Mirrors the blocks in [CLAUDE.md](CLAUDE.md). Foundation → features → polish,
-within and across notebooks:
+Foundation → features → polish, within and across notebooks:
 
-1. **1A** `benchmark_fn` (timer) → **1B** `compute_metrics` → **1C**
-   `lowest_ai_fn` + `make_compute_fn` + run sweep → **1D** notebook 01 analysis.
-2. **2A** `profile` → **2B** `optimized_loop` (KV cache, no sync) → **2C**
-   `generate_optimized` (dtype ablation, hit ≥4×) → **2D** notebook 02 analysis.
-3. **3A** `sweep_elementwise_times` + `estimate_launch_overhead_us` → **3B**
-   `fixed_decode_step` → **3C** `make_graphed_callable` + final benchmark →
-   **3D** notebook 03 analysis.
+1. `benchmark_fn` (timer) → `compute_metrics` →
+   `lowest_ai_fn` + `make_compute_fn` + run sweep → notebook 01 analysis.
+2. `profile` → `optimized_loop` (KV cache, no sync) →
+   `generate_optimized` (dtype ablation, hit ≥4×) → notebook 02 analysis.
+3. `sweep_elementwise_times` + `estimate_launch_overhead_us` →
+   `fixed_decode_step` → `make_graphed_callable` + final benchmark →
+   notebook 03 analysis.
 
 ## 13. Key Dependencies
 
@@ -332,7 +330,7 @@ table only recognizes `H100`/`L40S`; on an A100/T4 it falls back to H100 ceiling
 
 - **Source of truth:** [SPEC.md](SPEC.md) acceptance criteria + checklist.
 - **Smoke test (CPU, local macOS):** run each notebook's self-check cell: they
-  run anywhere and catch contract violations before you pay for GPU time.
+  run anywhere and catch contract violations before paying for GPU time.
   (Notebook 03's Part 3 self-check `SKIP`s on CPU.)
 - **Real run (GPU, Colab):** top-to-bottom; confirm every checklist line and that
   `results/` is populated. Reported numbers must be the GPU numbers.

@@ -54,21 +54,21 @@ jupyter lab
 
 ## Notebooks
 
-| Notebook | Topic | You build | Run |
+| Notebook | Topic | Implements | Run |
 |----------|-------|-----------|-----|
 | [`01_roofline.ipynb`](01_roofline.ipynb) | Roofline & arithmetic intensity | CUDA-event timer, roofline metrics, memory-/compute-bound workloads | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/01_roofline.ipynb) |
 | [`02_decode_optimization.ipynb`](02_decode_optimization.ipynb) | Profile & optimize a decode loop | profiler wrapper, KV-cache greedy decode, timed optimized run | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/02_decode_optimization.ipynb) |
 | [`03_compile_cuda_graphs.ipynb`](03_compile_cuda_graphs.ipynb) | `torch.compile` & CUDA graphs | launch-overhead sweep, break-free compiled step, manual CUDA graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MGhanayim/gpu-cuda-inference-optimization/blob/main/03_compile_cuda_graphs.ipynb) |
 
 Each notebook: a fixed harness, functions implemented against it, self-checks
-that must pass, and a short analysis. They build on each other: do them in order.
+that must pass, and a short analysis. They build on each other and read in order.
 
 ## Architecture
 
 A single measure → analyze → optimize pipeline runs through all three notebooks:
 build a workload, execute it (eager / compiled / graphed), time or profile it,
 derive metrics, and write the result. Full layered breakdown, call graphs, and
-diagrams are in **[PLAN.md](PLAN.md)**.
+diagrams are in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ## Tech Stack
 
@@ -104,7 +104,7 @@ relative results are the point):
 ├── 02_decode_optimization.ipynb  # profile + optimize a decode loop
 ├── 03_compile_cuda_graphs.ipynb  # torch.compile & CUDA graphs
 ├── results/                      # plots, JSON, traces (git-ignored except demo plots)
-├── SPEC.md   PLAN.md   CLAUDE.md # project docs
+├── SPEC.md   ARCHITECTURE.md   CLAUDE.md   # project docs
 └── requirements.txt
 ```
 
@@ -144,8 +144,8 @@ relative results are the point):
 ## Docs
 
 - **[SPEC.md](SPEC.md)**: requirements as acceptance criteria + verification checklist.
-- **[PLAN.md](PLAN.md)**: architecture, dependency rules, diagrams, walkthroughs.
-- **[CLAUDE.md](CLAUDE.md)**: the implementation blocks and how the project was built.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: architecture, dependency rules, diagrams, walkthroughs.
+- **[CLAUDE.md](CLAUDE.md)**: working rules for AI-assisted sessions in this repo.
 
 ## License
 
